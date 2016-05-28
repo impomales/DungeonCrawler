@@ -1,0 +1,58 @@
+// main view of game.
+var DungeonView = React.createClass({
+  render: function() {
+    return (
+      <div className="row">
+        <PlayerInfo />
+        <Map />
+      </div>
+    );
+  }
+});
+// end DungeonView.
+
+// shows health, weapon, level, etc.
+var PlayerInfo = React.createClass({
+  render: function() {
+    return (
+      <div className="row">
+        <div id="PlayerInfo" className="col-md-6">
+          <div className="row">
+            <p className="col-md-2">Health: </p>
+            <p className="col-md-2">Weapon: </p>
+            <p className="col-md-2">Attack: </p>
+            <p className="col-md-2">Level: </p>
+            <p className="col-md-2">Next Level: </p>
+            <p className="col-md-2">Dungeon: </p>
+          </div>
+        </div>
+        <div className="col-md-6">
+          <button>Toggle Darkness</button>
+        </div>
+      </div>
+    );
+  }
+});
+// end of PlayerInfo.
+
+// dungeon
+var Map = React.createClass({
+  render: function() {
+    return (
+      <div className="row">
+        <div className="col-xs-12">
+          <table>
+            <tbody>
+              <tr>
+                <td>test</td>
+                <td>data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+});
+
+ReactDOM.render(<DungeonView />, document.getElementById('DungeonView'));
