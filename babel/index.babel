@@ -1,5 +1,99 @@
+/*
+  consider load factor as 
+  terminating condition for 
+  generating dungeon.
+*/
+
+// dimension of dungeon map.
+const width = 7;
+const height = 5;
+
+// room types.
+const SMALLROOM = { height: 2, width: 2 };
+const LARGEROOM = { height: 4, width: 4 };
+const VERTCORRIDOR = { height: 4, width: 2 };
+const HORIZCORRIDOR = { height: 2, width: 4 };
+
+// Dungeon map composed of any of the following.
+const FULL = 0;       // space that is non occupiable.
+const EMPTY = 1;      // space occupiable with nothing there.
+const PLAYER = 2;     // where player currently is standing.
+const ENEMY = 3;      // where enemy is standing.
+const BOSS = 4;       // special case enemy.
+const ITEM = 5;       // raises health.
+const WEAPON = 6;     // increases attack.
+
+// creates initial dungeon of just full spaces.
+function initDungeon(width, height) {
+  var map = [];
+  for (var i = 0; i < width; i++) {
+    var row = [];
+    for (var j = 0; j < height; j++) {
+      row.push(FULL);
+    }
+    map.push(row);
+  }
+  return map;
+}
+
+// creates a room at 2d-index of max width and height.
+function createRoom(map, type, index) {
+  for (var i = index[0]; i < index[0] + type.height; i++) {
+    for (var j = index[1]; j < index[1] + type.width; j++) {
+      console.log("hello");
+      map[i][j] = EMPTY;
+    }
+  }
+}
+
+/* functions to be defined next time */
+// randomly selects a type of room.
+function decideRoom() {
+}
+
+// searches for a wall.
+function pickWall() {
+  
+}
+
+// checks if a new room fits at that index
+function doesFit() {
+  
+}
+
+// dungeon generator
+function generateDungeon() {
+  
+}
+
+// determines if current index is a wall.
+// wall is defined as any non full space adjacent to a full space.
+function isWall(map, index) {
+  var i = index[0], j = index[1];
+  if (map[i][j] == FULL) return false;
+  if (i + 1 < map.length && map[i + 1][j] == FULL) 
+    return true;
+  if (j + 1 < map[i].length && map[i][j + 1] == FULL)
+    return true;
+  if (i - 1 >= 0 && map[i -1][j] == FULL)
+    return true;
+  if (j - 1 >= 0 && map[i][j -1] == FULL)
+    return true;
+  return false;
+}
+
 // main view of game.
 var DungeonView = React.createClass({
+  getInitialState: function() {
+    return {
+      map: initDungeon(width, height),
+      health: 100,
+      attack: 7,
+      level: 0,
+      nextLevel: 60,
+      dungeon: 0,
+    };
+  },
   render: function() {
     return (
       <div className="row">
@@ -16,7 +110,7 @@ var PlayerInfo = React.createClass({
   render: function() {
     return (
       <div className="row">
-        <div id="PlayerInfo" className="col-md-6">
+        <div id="PlayerInfo" className="col-md-8">
           <div className="row">
             <p className="col-md-2">Health: </p>
             <p className="col-md-2">Weapon: </p>
@@ -26,7 +120,7 @@ var PlayerInfo = React.createClass({
             <p className="col-md-2">Dungeon: </p>
           </div>
         </div>
-        <div className="col-md-6">
+        <div className="col-md-4">
           <button>Toggle Darkness</button>
         </div>
       </div>
@@ -41,7 +135,7 @@ var Map = React.createClass({
     return (
       <div className="row">
         <div className="col-xs-12">
-          <table>
+          <table id="Map">
             <tbody>
               <tr>
                 <td>test</td>
@@ -54,5 +148,22 @@ var Map = React.createClass({
     );
   }
 });
+// end of dungeon map.
+
+// row of dungeon cells.
+var MapRow = React.createClass({
+  render: function() {
+    
+  }
+});
+// end of row.
+
+// dungeon cell.
+var MapCell = React.createClass({
+  render: function() {
+    
+  }
+});
+// end of cell.
 
 ReactDOM.render(<DungeonView />, document.getElementById('DungeonView'));
