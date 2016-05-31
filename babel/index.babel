@@ -25,6 +25,12 @@ const BOSS = 4;       // special case enemy.
 const ITEM = 5;       // raises health.
 const WEAPON = 6;     // increases attack.
 
+// direction facing wall.
+const NORTH = 7;
+const SOUTH = 8;
+const EAST = 9;
+const WEST = 10;
+
 // creates initial dungeon of just full spaces.
 function initDungeon(width, height) {
   var map = [];
@@ -39,13 +45,32 @@ function initDungeon(width, height) {
 }
 
 // creates a room at 2d-index of max width and height.
-// only creating l2r, t2b, should consider other cases. 
-function createRoom(map, type, index) {
-  for (var i = index[0]; i < index[0] + type.height; i++) {
-    for (var j = index[1]; j < index[1] + type.width; j++) {
-      map[i][j] = EMPTY;
+function createRoom(map, type, index, direction) {
+  if (direction === NORTH) {
+    for (var i = index[0]; i >= index[0] - type.height; i--) {
+      for (var j = index[1]; j < index[1] + type.width; j++) {
+        map[i][j] = EMPTY;
+      }
     }
+    return;
   }
+  if (direction === EAST || direction === SOUTH) {
+    for (var i = index[0]; i < index[0] + type.height; i++) {
+      for (var j = index[1]; j < index[1] + type.width; j++) {
+        map[i][j] = EMPTY;
+      }
+    }
+    return;
+  }
+  if (direction === WEST) {
+    for (var i = index[0]; i < index[0] + type.height; i++) {
+      for (var j = index[1]; j >= index[1] - type.width; j--) {
+        map[i][j] = EMPTY;
+      }
+    }
+    return;
+  }
+  return;
 }
 
 /* functions to be defined next time */
@@ -78,35 +103,74 @@ function pickWall(map) {
 
 // checks if a new room fits at that index
 // this isn't complete, need to check if overlap.
-function doesFit(map, type, index) {
-  return (index[0] + type.height < map.length &&
-          index[1] + type.width < map[i].length);
+function doesFit(map, type, index, direction) {
+  if (direction === NORTH) {
+    if (index[0] - type.height >= 0 &&
+        index[1] + type.width < map[index[0]].length) {
+      for (var i = index[0]; i >= index[0] - type.height; i--) {
+        for (var j = index[1]; j < index[1] + type.width; j++) {
+          if (map[i][j] != FULL) return false;
+        }
+      }
+    } else {
+      return false;
+    }
+    return true;
+  }
+  if (direction === EAST || direction === SOUTH) {
+    if (index[0] + type.height < map.length &&
+        index[1] + type.width < map[index[0]].length) {
+      for (var i = index[0]; i < index[0] + type.height; i++) {
+        for (var j = index[1]; j < index[1] + type.width; j++) {
+          if (map[i][j] != FULL) return false;
+        }
+      }
+    } else {
+      return false;
+    }
+    return true;
+  }
+  if (direction === WEST) {
+    if (index[0] + type.height < map.length &&
+        index[1] - type.width >= 0) {
+      for (var i = index[0]; i < index[0] + type.height; i++) {
+        for (var j = index[1]; j >= 0; j--) {
+          if (map[i][j] != FULL) return false;
+        }
+      }
+    } else {
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 // dungeon generator
 function generateDungeon(width, height) {
   // initialize map with EARTH cells.
-  map = initDungeon(width, height);
+  var map = initDungeon(width, height);
   
   // create a room with center index.
   var center = [
     map.length/2 - SMALLROOM.height/2, 
     map[i].length/2 - SMALLROOM.width/2
   ];
-  createRoom(map, SMALLROOM, center);
+  createRoom(map, SMALLROOM, center, SOUTH);
   
   // create a new room until threshold is reached.
   var numRooms = 1;
   while (numRooms <= threshold) {
     var success = false;
-    var type, index;
+    var type, index, direction;
     while (!success) {
       index = pickWall(map);
+      direction = getDirection(map, index);
       type = decideRoom();
-      if (doesFit(map, type, index))
+      if (doesFit(map, type, index, direction))
         success = true;
     }
-    createRoom(map, type, index);
+    createRoom(map, type, index, direction);
   }
   return map;
 }
@@ -116,15 +180,29 @@ function generateDungeon(width, height) {
 function isWall(map, index) {
   var i = index[0], j = index[1];
   if (map[i][j] == FULL) return false;
-  if (i + 1 < map.length && map[i + 1][j] == FULL) 
+  if (i + 1 < map.length && map[i + 1][j] === FULL) 
     return true;
-  if (j + 1 < map[i].length && map[i][j + 1] == FULL)
+  if (j + 1 < map[i].length && map[i][j + 1] === FULL)
     return true;
-  if (i - 1 >= 0 && map[i -1][j] == FULL)
+  if (i - 1 >= 0 && map[i -1][j] === FULL)
     return true;
-  if (j - 1 >= 0 && map[i][j -1] == FULL)
+  if (j - 1 >= 0 && map[i][j -1] === FULL)
     return true;
   return false;
+}
+
+// determines what direction facing wall.
+function getDirection(map, index) {
+  var i = index[0];
+  var j = index[1];
+  if (i - 1 >= 0 && map[i -1][j] === FULL)
+    return NORTH;
+  if (j + 1 < map[i].length && map[i][j + 1] === FULL)
+    return EAST;
+  if (i + 1 < map.length && map[i + 1][j] === FULL)
+    return SOUTH;
+  if (j - 1 >= 0 && map[i][j - 1] === FULL)
+    return WEST;
 }
 
 // main view of game.
