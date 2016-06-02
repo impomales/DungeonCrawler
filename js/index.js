@@ -7,15 +7,15 @@
 */
 
 // dimension of dungeon map.
-var width = 7;
-var height = 5;
-var threshold = 0.5 * width * height / 4;
+var width = 100;
+var height = 50;
+var threshold = 130;
 
 // room types.
-var SMALLROOM = { height: 2, width: 2 };
-var LARGEROOM = { height: 4, width: 4 };
-var VERTCORRIDOR = { height: 4, width: 2 };
-var HORIZCORRIDOR = { height: 2, width: 4 };
+var SMALLROOM = { height: 3, width: 3 };
+var LARGEROOM = { height: 10, width: 10 };
+var VERTCORRIDOR = { height: 10, width: 3 };
+var HORIZCORRIDOR = { height: 3, width: 10 };
 var typesOfRooms = 4;
 
 // Dungeon map composed of any of the following.
@@ -36,9 +36,9 @@ var WEST = 10;
 // creates initial dungeon of just full spaces.
 function initDungeon(width, height) {
   var map = [];
-  for (var i = 0; i < width; i++) {
+  for (var i = 0; i < height; i++) {
     var row = [];
-    for (var j = 0; j < height; j++) {
+    for (var j = 0; j < width; j++) {
       row.push(FULL);
     }
     map.push(row);
@@ -49,15 +49,23 @@ function initDungeon(width, height) {
 // creates a room at 2d-index of max width and height.
 function createRoom(map, type, index, direction) {
   if (direction === NORTH) {
-    for (var i = index[0]; i >= index[0] - type.height; i--) {
+    for (var i = index[0] - 1; i >= index[0] - type.height; i--) {
       for (var j = index[1]; j < index[1] + type.width; j++) {
         map[i][j] = EMPTY;
       }
     }
     return;
   }
-  if (direction === EAST || direction === SOUTH) {
+  if (direction === EAST) {
     for (var i = index[0]; i < index[0] + type.height; i++) {
+      for (var j = index[1] + 1; j <= index[1] + type.width; j++) {
+        map[i][j] = EMPTY;
+      }
+    }
+    return;
+  }
+  if (direction === SOUTH) {
+    for (var i = index[0] + 1; i <= index[0] + type.height; i++) {
       for (var j = index[1]; j < index[1] + type.width; j++) {
         map[i][j] = EMPTY;
       }
@@ -66,7 +74,7 @@ function createRoom(map, type, index, direction) {
   }
   if (direction === WEST) {
     for (var i = index[0]; i < index[0] + type.height; i++) {
-      for (var j = index[1]; j >= index[1] - type.width; j--) {
+      for (var j = index[1] - 1; j >= index[1] - type.width; j--) {
         map[i][j] = EMPTY;
       }
     }
@@ -104,11 +112,11 @@ function pickWall(map) {
 }
 
 // checks if a new room fits at that index
-// this isn't complete, need to check if overlap.
+// this isn't complete, needs to be fixed!
 function doesFit(map, type, index, direction) {
   if (direction === NORTH) {
     if (index[0] - type.height >= 0 && index[1] + type.width < map[index[0]].length) {
-      for (var i = index[0]; i >= index[0] - type.height; i--) {
+      for (var i = index[0] - 1; i >= index[0] - type.height; i--) {
         for (var j = index[1]; j < index[1] + type.width; j++) {
           if (map[i][j] != FULL) return false;
         }
@@ -118,9 +126,21 @@ function doesFit(map, type, index, direction) {
     }
     return true;
   }
-  if (direction === EAST || direction === SOUTH) {
+  if (direction === EAST) {
     if (index[0] + type.height < map.length && index[1] + type.width < map[index[0]].length) {
       for (var i = index[0]; i < index[0] + type.height; i++) {
+        for (var j = index[1] + 1; j <= index[1] + type.width; j++) {
+          if (map[i][j] != FULL) return false;
+        }
+      }
+    } else {
+      return false;
+    }
+    return true;
+  }
+  if (direction === SOUTH) {
+    if (index[0] + type.height < map.length && index[1] + type.width < map[index[0]].length) {
+      for (var i = index[0] + 1; i <= index[0] + type.height; i++) {
         for (var j = index[1]; j < index[1] + type.width; j++) {
           if (map[i][j] != FULL) return false;
         }
@@ -133,7 +153,7 @@ function doesFit(map, type, index, direction) {
   if (direction === WEST) {
     if (index[0] + type.height < map.length && index[1] - type.width >= 0) {
       for (var i = index[0]; i < index[0] + type.height; i++) {
-        for (var j = index[1]; j >= 0; j--) {
+        for (var j = index[1] - 1; j >= index[1] - type.width; j--) {
           if (map[i][j] != FULL) return false;
         }
       }
@@ -151,12 +171,12 @@ function generateDungeon(width, height) {
   var map = initDungeon(width, height);
 
   // create a room with center index.
-  var center = [map.length / 2 - SMALLROOM.height / 2, map[i].length / 2 - SMALLROOM.width / 2];
+  var center = [Math.floor(map.length / 2 - SMALLROOM.height / 2 - 1), Math.floor(map[0].length / 2 - SMALLROOM.width / 2)];
   createRoom(map, SMALLROOM, center, SOUTH);
-
   // create a new room until threshold is reached.
   var numRooms = 1;
-  while (numRooms <= threshold) {
+
+  while (numRooms < threshold) {
     var success = false;
     var type, index, direction;
     while (!success) {
@@ -166,7 +186,9 @@ function generateDungeon(width, height) {
       if (doesFit(map, type, index, direction)) success = true;
     }
     createRoom(map, type, index, direction);
+    numRooms++;
   }
+
   return map;
 }
 
@@ -212,7 +234,7 @@ var DungeonView = React.createClass({
       "div",
       { className: "row" },
       React.createElement(PlayerInfo, null),
-      React.createElement(Map, null)
+      React.createElement(Map, { map: this.state.map })
     );
   }
 });
@@ -283,6 +305,17 @@ var Map = React.createClass({
   displayName: "Map",
 
   render: function render() {
+    var rows = [];
+    for (var i = 0; i < this.props.map.length; i++) {
+      var cells = [];
+      for (var j = 0; j < this.props.map[i].length; j++) {
+        cells.push(React.createElement(MapCell, {
+          cell: this.props.map[i][j],
+          key: i * j + j
+        }));
+      }
+      rows.push(React.createElement(MapRow, { cells: cells, key: i }));
+    }
     return React.createElement(
       "div",
       { className: "row" },
@@ -295,20 +328,7 @@ var Map = React.createClass({
           React.createElement(
             "tbody",
             null,
-            React.createElement(
-              "tr",
-              null,
-              React.createElement(
-                "td",
-                null,
-                "test"
-              ),
-              React.createElement(
-                "td",
-                null,
-                "data"
-              )
-            )
+            rows
           )
         )
       )
@@ -321,7 +341,13 @@ var Map = React.createClass({
 var MapRow = React.createClass({
   displayName: "MapRow",
 
-  render: function render() {}
+  render: function render() {
+    return React.createElement(
+      "tr",
+      null,
+      this.props.cells
+    );
+  }
 });
 // end of row.
 
@@ -329,7 +355,17 @@ var MapRow = React.createClass({
 var MapCell = React.createClass({
   displayName: "MapCell",
 
-  render: function render() {}
+  render: function render() {
+    return React.createElement(
+      "td",
+      null,
+      React.createElement(
+        "div",
+        { "class": "cell" },
+        this.props.cell
+      )
+    );
+  }
 });
 // end of cell.
 
