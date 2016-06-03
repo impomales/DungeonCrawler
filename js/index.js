@@ -8,14 +8,14 @@
 
 // dimension of dungeon map.
 var width = 100;
-var height = 50;
-var threshold = 130;
+var height = 100;
+var threshold = 270;
 
 // room types.
 var SMALLROOM = { height: 3, width: 3 };
-var LARGEROOM = { height: 10, width: 10 };
-var VERTCORRIDOR = { height: 10, width: 3 };
-var HORIZCORRIDOR = { height: 3, width: 10 };
+var LARGEROOM = { height: 6, width: 6 };
+var VERTCORRIDOR = { height: 10, width: 2 };
+var HORIZCORRIDOR = { height: 1, width: 10 };
 var typesOfRooms = 4;
 
 // Dungeon map composed of any of the following.
@@ -198,9 +198,9 @@ function isWall(map, index) {
   var i = index[0],
       j = index[1];
   if (map[i][j] == FULL) return false;
+  if (i - 1 >= 0 && map[i - 1][j] === FULL) return true;
   if (i + 1 < map.length && map[i + 1][j] === FULL) return true;
   if (j + 1 < map[i].length && map[i][j + 1] === FULL) return true;
-  if (i - 1 >= 0 && map[i - 1][j] === FULL) return true;
   if (j - 1 >= 0 && map[i][j - 1] === FULL) return true;
   return false;
 }
@@ -210,9 +210,9 @@ function getDirection(map, index) {
   var i = index[0];
   var j = index[1];
   if (i - 1 >= 0 && map[i - 1][j] === FULL) return NORTH;
+  if (j - 1 >= 0 && map[i][j - 1] === FULL) return WEST;
   if (j + 1 < map[i].length && map[i][j + 1] === FULL) return EAST;
   if (i + 1 < map.length && map[i + 1][j] === FULL) return SOUTH;
-  if (j - 1 >= 0 && map[i][j - 1] === FULL) return WEST;
 }
 
 // main view of game.
@@ -247,10 +247,10 @@ var PlayerInfo = React.createClass({
   render: function render() {
     return React.createElement(
       "div",
-      { className: "row" },
+      { id: "PlayerInfo", className: "row" },
       React.createElement(
         "div",
-        { id: "PlayerInfo", className: "col-md-8" },
+        { className: "col-md-8" },
         React.createElement(
           "div",
           { className: "row" },
@@ -356,13 +356,25 @@ var MapCell = React.createClass({
   displayName: "MapCell",
 
   render: function render() {
+    var color;
+    switch (this.props.cell) {
+      case FULL:
+        color = '#333';
+        break;
+      case EMPTY:
+        color = '#fff';
+        break;
+      default:
+        color = '#000';
+    }
+    var css = { backgroundColor: color };
     return React.createElement(
       "td",
       null,
       React.createElement(
         "div",
-        { "class": "cell" },
-        this.props.cell
+        { style: css, "class": "cell" },
+        " "
       )
     );
   }
