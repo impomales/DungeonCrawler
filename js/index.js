@@ -1,15 +1,10 @@
 "use strict";
 
-/*
-  consider load factor as 
-  terminating condition for 
-  generating dungeon.
-*/
-
 // dimension of dungeon map.
 var width = 100;
 var height = 100;
 var threshold = 270;
+var playerIndex = [];
 
 // room types.
 var SMALLROOM = { height: 3, width: 3 };
@@ -21,17 +16,103 @@ var typesOfRooms = 4;
 // Dungeon map composed of any of the following.
 var FULL = 0; // space that is non occupiable.
 var EMPTY = 1; // space occupiable with nothing there.
-var PLAYER = 2; // where player currently is standing.
-var ENEMY = 3; // where enemy is standing.
-var BOSS = 4; // special case enemy.
-var ITEM = 5; // raises health.
-var WEAPON = 6; // increases attack.
+var PORTAL = 2; // redirects you to next dungeon.
 
 // direction facing wall.
 var NORTH = 7;
 var SOUTH = 8;
 var EAST = 9;
 var WEST = 10;
+
+// weapons available.
+var FIST = 50;
+var STICK = 75;
+var MACE = 100;
+var AXE = 125;
+var KATANA = 150;
+var OATHKEEPER = 500;
+
+/* player object */
+function setAttack(weapon, level) {
+  return 2 * level + weapon;
+}
+
+function setNextLevel(level) {
+  return 200 * level + 100;
+}
+
+function setHp(level) {
+  return 100 * level + 100;
+}
+
+function player(weapon, level) {
+  this.weapon = weapon;
+  this.level = level;
+  this.hp = setHp(level);
+  this.attack = setAttack(this.weapon, this.level);
+  this.nextLevel = setNextLevel(this.level);
+  this.levelUp = function () {
+    if (this.nextLevel > 0) return;
+    this.level++;
+    this.hp = setHp(this.level);
+    this.attack = setAttack(this.weapon, this.level);
+    this.nextLevel = setNextLevel(this.level);
+  };
+}
+
+/* enemy object */
+function enemy(dungeon) {
+  this.hp = 100 * dungeon + 100;
+  this.attack = 50 * dungeon;
+}
+
+/* weapon object */
+function weapon(dungeon) {
+  switch (dungeon) {
+    case 1:
+      this.type = STICK;
+      break;
+    case 2:
+      this.type = MACE;
+      break;
+    case 3:
+      this.type = AXE;
+      break;
+    case 4:
+      this.type = KATANA;
+      break;
+    case 5:
+      this.type = OATHKEEPER;
+      break;
+    default:
+      this.type = -1;
+  }
+}
+
+/* health item object */
+function item(dungeon) {
+  switch (dungeon) {
+    case 1:
+      this.health = 25;
+      break;
+    case 2:
+      this.health = 50;
+      break;
+    case 3:
+      this.health = 75;
+      break;
+    case 4:
+      this.health = 100;
+      break;
+    case 5:
+      this.health = 150;
+      break;
+    default:
+      this.health = -1;
+  }
+}
+
+/* functions for generation a dungeon floor */
 
 // creates initial dungeon of just full spaces.
 function initDungeon(width, height) {
@@ -166,7 +247,7 @@ function doesFit(map, type, index, direction) {
 }
 
 // dungeon generator
-function generateDungeon(width, height) {
+function generateDungeon(width, height, player) {
   // initialize map with EARTH cells.
   var map = initDungeon(width, height);
 
@@ -189,6 +270,7 @@ function generateDungeon(width, height) {
     numRooms++;
   }
 
+  // populate with player, enemies, items, weapons.
   return map;
 }
 
@@ -215,18 +297,22 @@ function getDirection(map, index) {
   if (i + 1 < map.length && map[i + 1][j] === FULL) return SOUTH;
 }
 
+function populate(map, dungeon) {}
+// put enemies -- boss only on last floor.
+// put health items
+// put weapon -- one per floor.
+// put portal -- one per floor.
+// put player -- one per floor.  * store location of the player!
+
 // main view of game.
 var DungeonView = React.createClass({
   displayName: "DungeonView",
 
   getInitialState: function getInitialState() {
     return {
-      map: generateDungeon(width, height),
-      health: 100,
-      attack: 7,
-      level: 0,
-      nextLevel: 60,
-      dungeon: 0
+      map: generateDungeon(width, height, new player(FIST, 0)),
+      playerIndex: playerIndex,
+      dungeon: 1
     };
   },
   render: function render() {
