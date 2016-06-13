@@ -7,10 +7,22 @@ var threshold = 270;
 var playerIndex = [];
 
 // room types.
-var SMALLROOM = { height: 3, width: 3 };
-var LARGEROOM = { height: 6, width: 6 };
-var VERTCORRIDOR = { height: 10, width: 2 };
-var HORIZCORRIDOR = { height: 1, width: 10 };
+var SMALLROOM = {
+  height: 3,
+  width: 3
+};
+var LARGEROOM = {
+  height: 6,
+  width: 6
+};
+var VERTCORRIDOR = {
+  height: 10,
+  width: 2
+};
+var HORIZCORRIDOR = {
+  height: 1,
+  width: 10
+};
 var typesOfRooms = 4;
 
 // Dungeon map composed of any of the following.
@@ -46,6 +58,7 @@ function setHp(level) {
 }
 
 function player(weapon, level) {
+  this.name = "PLAYER";
   this.weapon = weapon;
   this.level = level;
   this.hp = setHp(level);
@@ -62,12 +75,14 @@ function player(weapon, level) {
 
 /* enemy object */
 function enemy(dungeon) {
+  this.name = "ENEMY";
   this.hp = 100 * dungeon + 100;
   this.attack = 50 * dungeon;
 }
 
 /* weapon object */
 function weapon(dungeon) {
+  this.name = "WEAPON";
   switch (dungeon) {
     case 1:
       this.type = STICK;
@@ -91,6 +106,7 @@ function weapon(dungeon) {
 
 /* health item object */
 function item(dungeon) {
+  this.name = "ITEM";
   switch (dungeon) {
     case 1:
       this.health = 25;
@@ -246,34 +262,6 @@ function doesFit(map, type, index, direction) {
   return false;
 }
 
-// dungeon generator
-function generateDungeon(width, height, player) {
-  // initialize map with EARTH cells.
-  var map = initDungeon(width, height);
-
-  // create a room with center index.
-  var center = [Math.floor(map.length / 2 - SMALLROOM.height / 2 - 1), Math.floor(map[0].length / 2 - SMALLROOM.width / 2)];
-  createRoom(map, SMALLROOM, center, SOUTH);
-  // create a new room until threshold is reached.
-  var numRooms = 1;
-
-  while (numRooms < threshold) {
-    var success = false;
-    var type, index, direction;
-    while (!success) {
-      index = pickWall(map);
-      direction = getDirection(map, index);
-      type = decideRoom();
-      if (doesFit(map, type, index, direction)) success = true;
-    }
-    createRoom(map, type, index, direction);
-    numRooms++;
-  }
-
-  // populate with player, enemies, items, weapons.
-  return map;
-}
-
 // determines if current index is a wall.
 // wall is defined as any non full space adjacent to a full space.
 function isWall(map, index) {
@@ -297,12 +285,98 @@ function getDirection(map, index) {
   if (i + 1 < map.length && map[i + 1][j] === FULL) return SOUTH;
 }
 
-function populate(map, dungeon) {}
-// put enemies -- boss only on last floor.
-// put health items
-// put weapon -- one per floor.
-// put portal -- one per floor.
-// put player -- one per floor.  * store location of the player!
+// dungeon generator
+function generateDungeon(width, height, player, dungeon) {
+  // initialize map with EARTH cells.
+  var map = initDungeon(width, height);
+
+  // create a room with center index.
+  var center = [Math.floor(map.length / 2 - SMALLROOM.height / 2 - 1), Math.floor(map[0].length / 2 - SMALLROOM.width / 2)];
+  createRoom(map, SMALLROOM, center, SOUTH);
+  // create a new room until threshold is reached.
+  var numRooms = 1;
+
+  while (numRooms < threshold) {
+    var success = false;
+    var type, index, direction;
+    while (!success) {
+      index = pickWall(map);
+      direction = getDirection(map, index);
+      type = decideRoom();
+      if (doesFit(map, type, index, direction)) success = true;
+    }
+    createRoom(map, type, index, direction);
+    numRooms++;
+  }
+
+  // populate with player, enemies, items, weapons.
+  populate(map, dungeon, player);
+  return map;
+}
+
+// fill dungeon with player, enemies, items, weapons, etc.
+function populate(map, dungeon, player) {
+  // put enemies -- boss only on last floor.
+  populateEnemies(map, dungeon);
+  // put health items
+  populateItems(map, dungeon);
+  // put weapon -- one per floor.
+  putWeapon(map, dungeon);
+  // put portal -- one per floor.
+  putPortal(map);
+  // put player -- one per floor.  * store location of the player!
+  putPlayer(map, player);
+}
+
+// util function to get random index.
+function getRandomIndex(map) {
+  var index = [];
+  do {
+    index = [Math.floor(Math.random() * map.length), Math.floor(Math.random() * map[0].length)];
+  } while (map[index[0]][index[1]] !== EMPTY);
+  return index;
+}
+
+function populateEnemies(map, dungeon) {
+  var numberOfEnemies = 3 + 2 * dungeon;
+  while (numberOfEnemies > 0) {
+    // should create getRandomEmptyIndex function.
+    var index = getRandomIndex(map);
+    map[index[0]][index[1]] = new enemy(dungeon);
+    numberOfEnemies--;
+  }
+  if (dungeon === 5) {
+    // need to put boss.
+    putBoss(map);
+  }
+}
+
+function populateItems(map, dungeon) {
+  var numberOfItems = 5 * dungeon;
+  while (numberOfItems) {
+    var index = getRandomIndex(map);
+    map[index[0]][index[1]] = new item(dungeon);
+    numberOfItems--;
+  }
+}
+
+function putWeapon(map, dungeon) {
+  var index = getRandomIndex(map);
+  map[index[0]][index[1]] = new weapon(dungeon);
+}
+
+function putPortal(map) {
+  var index = getRandomIndex(map);
+  map[index[0]][index[1]] = PORTAL;
+}
+
+function putPlayer(map, player) {
+  var index = getRandomIndex(map);
+  map[index[0]][index[1]] = player;
+}
+
+function putBoss(map) {}
+// needs four empty spaces in a shape of a square
 
 // main view of game.
 var DungeonView = React.createClass({
@@ -310,12 +384,13 @@ var DungeonView = React.createClass({
 
   getInitialState: function getInitialState() {
     return {
-      map: generateDungeon(width, height, new player(FIST, 0)),
+      map: generateDungeon(width, height, new player(FIST, 0), 1),
       playerIndex: playerIndex,
       dungeon: 1
     };
   },
   render: function render() {
+    console.log("view rendering.");
     return React.createElement(
       "div",
       { className: "row" },
@@ -443,17 +518,41 @@ var MapCell = React.createClass({
 
   render: function render() {
     var color;
-    switch (this.props.cell) {
-      case FULL:
-        color = '#333';
-        break;
-      case EMPTY:
-        color = '#fff';
-        break;
-      default:
-        color = '#000';
+    if (typeof this.props.cell === 'number') {
+      switch (this.props.cell) {
+        case FULL:
+          color = '#333';
+          break;
+        case EMPTY:
+          color = '#fff';
+          break;
+        case PORTAL:
+          color = '#c6f';
+          break;
+        default:
+          color = '#000';
+      }
+    } else {
+      switch (this.props.cell.name) {
+        case 'PLAYER':
+          color = 'blue';
+          break;
+        case 'ENEMY':
+          color = 'red';
+          break;
+        case 'ITEM':
+          color = '#0f3';
+          break;
+        case 'WEAPON':
+          color = '#ff3';
+          break;
+        default:
+          color = 'black';
+      }
     }
-    var css = { backgroundColor: color };
+    var css = {
+      backgroundColor: color
+    };
     return React.createElement(
       "td",
       null,

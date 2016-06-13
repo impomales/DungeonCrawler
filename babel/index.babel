@@ -5,16 +5,28 @@ var threshold = 270;
 var playerIndex = [];
 
 // room types.
-const SMALLROOM = { height: 3, width: 3 };
-const LARGEROOM = { height: 6, width: 6 };
-const VERTCORRIDOR = { height: 10, width: 2 };
-const HORIZCORRIDOR = { height: 1, width: 10 };
+const SMALLROOM = {
+  height: 3,
+  width: 3
+};
+const LARGEROOM = {
+  height: 6,
+  width: 6
+};
+const VERTCORRIDOR = {
+  height: 10,
+  width: 2
+};
+const HORIZCORRIDOR = {
+  height: 1,
+  width: 10
+};
 const typesOfRooms = 4;
 
 // Dungeon map composed of any of the following.
-const FULL = 0;       // space that is non occupiable.
-const EMPTY = 1;      // space occupiable with nothing there.
-const PORTAL = 2;     // redirects you to next dungeon.
+const FULL = 0; // space that is non occupiable.
+const EMPTY = 1; // space occupiable with nothing there.
+const PORTAL = 2; // redirects you to next dungeon.
 
 // direction facing wall.
 const NORTH = 7;
@@ -30,7 +42,6 @@ const AXE = 125;
 const KATANA = 150;
 const OATHKEEPER = 500;
 
-
 /* player object */
 function setAttack(weapon, level) {
   return 2 * level + weapon;
@@ -45,6 +56,7 @@ function setHp(level) {
 }
 
 function player(weapon, level) {
+  this.name = "PLAYER"
   this.weapon = weapon;
   this.level = level;
   this.hp = setHp(level);
@@ -61,12 +73,14 @@ function player(weapon, level) {
 
 /* enemy object */
 function enemy(dungeon) {
+  this.name = "ENEMY";
   this.hp = 100 * dungeon + 100;
   this.attack = 50 * dungeon;
 }
 
 /* weapon object */
 function weapon(dungeon) {
+  this.name = "WEAPON";
   switch (dungeon) {
     case 1:
       this.type = STICK;
@@ -90,6 +104,7 @@ function weapon(dungeon) {
 
 /* health item object */
 function item(dungeon) {
+  this.name = "ITEM";
   switch (dungeon) {
     case 1:
       this.health = 25;
@@ -169,15 +184,15 @@ function decideRoom() {
   var selection = Math.floor(Math.random() * typesOfRooms);
   switch (selection) {
     case 0:
-        return SMALLROOM;
+      return SMALLROOM;
     case 1:
-        return LARGEROOM;
+      return LARGEROOM;
     case 2:
-        return VERTCORRIDOR;
+      return VERTCORRIDOR;
     case 3:
-        return HORIZCORRIDOR;
+      return HORIZCORRIDOR;
     default:
-        return false;
+      return false;
   }
 }
 
@@ -187,8 +202,8 @@ function pickWall(map) {
   do {
     i = Math.floor(Math.random() * map.length);
     j = Math.floor(Math.random() * map[i].length);
-  } while (!isWall(map, [i,j]));
-  return [i,j];
+  } while (!isWall(map, [i, j]));
+  return [i, j];
 }
 
 // checks if a new room fits at that index
@@ -196,7 +211,7 @@ function pickWall(map) {
 function doesFit(map, type, index, direction) {
   if (direction === NORTH) {
     if (index[0] - type.height >= 0 &&
-        index[1] + type.width < map[index[0]].length) {
+      index[1] + type.width < map[index[0]].length) {
       for (var i = index[0] - 1; i >= index[0] - type.height; i--) {
         for (var j = index[1]; j < index[1] + type.width; j++) {
           if (map[i][j] != FULL) return false;
@@ -209,7 +224,7 @@ function doesFit(map, type, index, direction) {
   }
   if (direction === EAST) {
     if (index[0] + type.height < map.length &&
-        index[1] + type.width < map[index[0]].length) {
+      index[1] + type.width < map[index[0]].length) {
       for (var i = index[0]; i < index[0] + type.height; i++) {
         for (var j = index[1] + 1; j <= index[1] + type.width; j++) {
           if (map[i][j] != FULL) return false;
@@ -222,7 +237,7 @@ function doesFit(map, type, index, direction) {
   }
   if (direction === SOUTH) {
     if (index[0] + type.height < map.length &&
-        index[1] + type.width < map[index[0]].length) {
+      index[1] + type.width < map[index[0]].length) {
       for (var i = index[0] + 1; i <= index[0] + type.height; i++) {
         for (var j = index[1]; j < index[1] + type.width; j++) {
           if (map[i][j] != FULL) return false;
@@ -235,7 +250,7 @@ function doesFit(map, type, index, direction) {
   }
   if (direction === WEST) {
     if (index[0] + type.height < map.length &&
-        index[1] - type.width >= 0) {
+      index[1] - type.width >= 0) {
       for (var i = index[0]; i < index[0] + type.height; i++) {
         for (var j = index[1] - 1; j >= index[1] - type.width; j--) {
           if (map[i][j] != FULL) return false;
@@ -249,20 +264,51 @@ function doesFit(map, type, index, direction) {
   return false;
 }
 
+// determines if current index is a wall.
+// wall is defined as any non full space adjacent to a full space.
+function isWall(map, index) {
+  var i = index[0],
+    j = index[1];
+  if (map[i][j] == FULL) return false;
+  if (i - 1 >= 0 && map[i - 1][j] === FULL)
+    return true;
+  if (i + 1 < map.length && map[i + 1][j] === FULL)
+    return true;
+  if (j + 1 < map[i].length && map[i][j + 1] === FULL)
+    return true;
+  if (j - 1 >= 0 && map[i][j - 1] === FULL)
+    return true;
+  return false;
+}
+
+// determines what direction facing wall.
+function getDirection(map, index) {
+  var i = index[0];
+  var j = index[1];
+  if (i - 1 >= 0 && map[i - 1][j] === FULL)
+    return NORTH;
+  if (j - 1 >= 0 && map[i][j - 1] === FULL)
+    return WEST;
+  if (j + 1 < map[i].length && map[i][j + 1] === FULL)
+    return EAST;
+  if (i + 1 < map.length && map[i + 1][j] === FULL)
+    return SOUTH;
+}
+
 // dungeon generator
-function generateDungeon(width, height, player) {
+function generateDungeon(width, height, player, dungeon) {
   // initialize map with EARTH cells.
   var map = initDungeon(width, height);
-  
+
   // create a room with center index.
   var center = [
-    Math.floor(map.length/2 - SMALLROOM.height/2 - 1), 
-    Math.floor(map[0].length/2 - SMALLROOM.width/2)
+    Math.floor(map.length / 2 - SMALLROOM.height / 2 - 1),
+    Math.floor(map[0].length / 2 - SMALLROOM.width / 2)
   ];
   createRoom(map, SMALLROOM, center, SOUTH);
   // create a new room until threshold is reached.
   var numRooms = 1;
-  
+
   while (numRooms < threshold) {
     var success = false;
     var type, index, direction;
@@ -276,59 +322,91 @@ function generateDungeon(width, height, player) {
     createRoom(map, type, index, direction);
     numRooms++;
   }
-  
+
   // populate with player, enemies, items, weapons.
+  populate(map, dungeon, player)
   return map;
 }
 
-// determines if current index is a wall.
-// wall is defined as any non full space adjacent to a full space.
-function isWall(map, index) {
-  var i = index[0], j = index[1];
-  if (map[i][j] == FULL) return false;
-  if (i - 1 >= 0 && map[i -1][j] === FULL)
-    return true;
-  if (i + 1 < map.length && map[i + 1][j] === FULL) 
-    return true;
-  if (j + 1 < map[i].length && map[i][j + 1] === FULL)
-    return true;
-  if (j - 1 >= 0 && map[i][j -1] === FULL)
-    return true;
-  return false;
-}
-
-// determines what direction facing wall.
-function getDirection(map, index) {
-  var i = index[0];
-  var j = index[1];
-  if (i - 1 >= 0 && map[i -1][j] === FULL)
-    return NORTH;
-  if (j - 1 >= 0 && map[i][j - 1] === FULL)
-    return WEST;
-  if (j + 1 < map[i].length && map[i][j + 1] === FULL)
-    return EAST;
-  if (i + 1 < map.length && map[i + 1][j] === FULL)
-    return SOUTH;
-}
-
-function populate(map, dungeon) {
+// fill dungeon with player, enemies, items, weapons, etc.
+function populate(map, dungeon, player) {
   // put enemies -- boss only on last floor.
+  populateEnemies(map, dungeon);
   // put health items
+  populateItems(map, dungeon);
   // put weapon -- one per floor.
+  putWeapon(map, dungeon);
   // put portal -- one per floor.
+  putPortal(map);
   // put player -- one per floor.  * store location of the player!
+  putPlayer(map, player);
+}
+
+// util function to get random index.
+function getRandomIndex(map) {
+  var index = [];
+  do {
+    index = [
+      Math.floor(Math.random() * map.length),
+      Math.floor(Math.random() * map[0].length)
+    ];
+  } while (map[index[0]][index[1]] !== EMPTY);
+  return index;
+}
+
+function populateEnemies(map, dungeon) {
+  var numberOfEnemies = 3 + 2 *  dungeon;
+  while (numberOfEnemies > 0) {
+    // should create getRandomEmptyIndex function.
+    var index = getRandomIndex(map);
+    map[index[0]][index[1]] = new enemy(dungeon);
+    numberOfEnemies--;
+  }
+  if (dungeon === 5) {
+    // need to put boss.
+    putBoss(map);
+  }
+}
+
+function populateItems(map, dungeon) {
+  var numberOfItems = 5 * dungeon;
+  while (numberOfItems) {
+    var index = getRandomIndex(map);
+    map[index[0]][index[1]] = new item(dungeon);
+    numberOfItems--;
+  }
+}
+
+function putWeapon(map, dungeon) {
+  var index = getRandomIndex(map);
+  map[index[0]][index[1]] = new weapon(dungeon);
+}
+
+function putPortal(map) {
+  var index = getRandomIndex(map);
+  map[index[0]][index[1]] = PORTAL;
+}
+
+function putPlayer(map, player) {
+  var index = getRandomIndex(map);
+  map[index[0]][index[1]] = player;
+}
+
+function putBoss(map) {
+  // needs four empty spaces in a shape of a square
 }
 
 // main view of game.
 var DungeonView = React.createClass({
   getInitialState: function() {
     return {
-      map: generateDungeon(width, height, new player(FIST, 0)),
+      map: generateDungeon(width, height, new player(FIST, 0), 1),
       playerIndex: playerIndex,
       dungeon: 1,
     };
   },
   render: function() {
+    console.log("view rendering.");
     return (
       <div className="row">
         <PlayerInfo />
@@ -406,17 +484,41 @@ var MapRow = React.createClass({
 var MapCell = React.createClass({
   render: function() {
     var color;
-    switch (this.props.cell) {
-      case FULL:
-        color = '#333';
-        break;
-      case EMPTY:
-        color = '#fff';
-        break;
-      default:
-        color = '#000';
+    if (typeof this.props.cell === 'number') {
+      switch (this.props.cell) {
+        case FULL:
+          color = '#333';
+          break;
+        case EMPTY:
+          color = '#fff';
+          break;
+        case PORTAL:
+          color = '#c6f';
+          break;
+        default:
+          color = '#000';
+      }
+    } else {
+      switch (this.props.cell.name) {
+        case 'PLAYER':
+          color = 'blue';
+          break;
+        case 'ENEMY':
+          color = 'red';
+          break;
+        case 'ITEM':
+          color = '#0f3';
+          break;
+        case 'WEAPON':
+          color = '#ff3';
+          break;
+        default:
+          color = 'black';
+      }
     }
-    var css = {backgroundColor: color};
+    var css = {
+      backgroundColor: color
+    };
     return (
       <td>
         <div style={css} class="cell"> </div>
