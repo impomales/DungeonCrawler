@@ -1,23 +1,31 @@
-"use strict";
+'use strict';
+
+// page should center on player position.
 
 // dimension of dungeon map.
-var width = 100;
-var height = 100;
-var threshold = 270;
-var playerIndex = [];
+var width = 50;
+var height = 25;
+var threshold = 70;
+var playerIndex_g = [];
+
+// keyboard codes
+var LEFT = 37;
+var UP = 38;
+var RIGHT = 39;
+var DOWN = 40;
 
 // room types.
 var SMALLROOM = {
-  height: 3,
-  width: 3
+  height: 2,
+  width: 2
 };
 var LARGEROOM = {
-  height: 6,
-  width: 6
+  height: 4,
+  width: 4
 };
 var VERTCORRIDOR = {
   height: 10,
-  width: 2
+  width: 1
 };
 var HORIZCORRIDOR = {
   height: 1,
@@ -44,6 +52,25 @@ var AXE = 125;
 var KATANA = 150;
 var OATHKEEPER = 500;
 
+function weaponString(type) {
+  switch (type) {
+    case FIST:
+      return 'Fist';
+    case STICK:
+      return 'Stick';
+    case MACE:
+      return 'Mace';
+    case AXE:
+      return 'Axe';
+    case KATANA:
+      return 'Katana';
+    case OATHKEEPER:
+      return 'Oathkeeper';
+    default:
+      return 'err: invalid weapon';
+  }
+}
+
 /* player object */
 function setAttack(weapon, level) {
   return 2 * level + weapon;
@@ -57,11 +84,12 @@ function setHp(level) {
   return 100 * level + 100;
 }
 
-function player(weapon, level) {
+function player(weapon, level, hp) {
   this.name = "PLAYER";
   this.weapon = weapon;
   this.level = level;
-  this.hp = setHp(level);
+  // set to default if zero.
+  this.hp = hp === 0 ? setHp(level) : hp;
   this.attack = setAttack(this.weapon, this.level);
   this.nextLevel = setNextLevel(this.level);
   this.levelUp = function () {
@@ -74,9 +102,9 @@ function player(weapon, level) {
 }
 
 /* enemy object */
-function enemy(dungeon) {
+function enemy(dungeon, hp) {
   this.name = "ENEMY";
-  this.hp = 100 * dungeon + 100;
+  this.hp = hp === 0 ? 100 * dungeon + 100 : hp;
   this.attack = 50 * dungeon;
 }
 
@@ -129,6 +157,27 @@ function item(dungeon) {
 }
 
 /* functions for generation a dungeon floor */
+
+// create a copy of current floor.
+function copy(map, dungeon) {
+  var copy = [];
+  for (var i = 0; i < map.length; i++) {
+    var row = [];
+    for (var j = 0; j < map[i].length; j++) {
+      if (typeof map[i][j] === 'number') row.push(map[i][j]);else {
+        if (map[i][j].name === 'PLAYER') {
+          var playerOld = map[i][j];
+          row.push(new player(playerOld.weapon, playerOld.level, playerOld.hp));
+        } else if (map[i][j].name === 'ENEMY') {
+          var enemyOld = map[i][j];
+          row.push(new enemy(dungeon, enemyOld.hp));
+        } else if (map[i][j].name === 'WEAPON') row.push(new weapon(dungeon));else if (map[i][j].name === 'ITEM') row.push(new item(dungeon));else console.log("error in copying map");
+      }
+    }
+    copy.push(row);
+  }
+  return copy;
+}
 
 // creates initial dungeon of just full spaces.
 function initDungeon(width, height) {
@@ -342,7 +391,7 @@ function populateEnemies(map, dungeon) {
   while (numberOfEnemies > 0) {
     // should create getRandomEmptyIndex function.
     var index = getRandomIndex(map);
-    map[index[0]][index[1]] = new enemy(dungeon);
+    map[index[0]][index[1]] = new enemy(dungeon, 0);
     numberOfEnemies--;
   }
   if (dungeon === 5) {
@@ -352,7 +401,7 @@ function populateEnemies(map, dungeon) {
 }
 
 function populateItems(map, dungeon) {
-  var numberOfItems = 5 * dungeon;
+  var numberOfItems = 5 - dungeon;
   while (numberOfItems) {
     var index = getRandomIndex(map);
     map[index[0]][index[1]] = new item(dungeon);
@@ -373,28 +422,101 @@ function putPortal(map) {
 function putPlayer(map, player) {
   var index = getRandomIndex(map);
   map[index[0]][index[1]] = player;
+  playerIndex_g = [index[0], index[1]];
 }
 
 function putBoss(map) {}
 // needs four empty spaces in a shape of a square
 
+// moves player one step in direction.
+function movePlayer(map, playerIndex, direction, dungeon) {
+  var index = getNextSpace(map, playerIndex, direction);
+  if (index === -1) return false;
+  var nextSpace = map[index[0]][index[1]];
+  // if wall return.
+  if (nextSpace === FULL) return false;
+  // if next space in direction empty, swap
+  if (nextSpace === EMPTY) {
+    map[index[0]][index[1]] = map[playerIndex[0]][playerIndex[1]];
+    map[playerIndex[0]][playerIndex[1]] = EMPTY;
+    playerIndex_g = [index[0], index[1]];
+    return false;
+  }
+  // if next space in direction portal
+  if (nextSpace === PORTAL) return enterPortal(dungeon);
+  // if next space in direction item or weapon
+  if (nextSpace.name === 'ITEM' || nextSpace.name === 'WEAPON') {
+    pickUp(map, playerIndex, index);
+    return false;
+  }
+  // if next space in direction is enemy
+  if (nextSpace.name === 'ENEMY') fightEnemy(map, playerIndex, index);
+
+  // otherwise
+  return false;
+}
+
+function getNextSpace(map, playerIndex, direction) {
+  var i = playerIndex[0];
+  var j = playerIndex[1];
+  if (direction === LEFT) {
+    if (j - 1 < 0) return -1;
+    return [i, j - 1];
+  } else if (direction === UP) {
+    if (i - 1 < 0) return -1;
+    return [i - 1, j];
+  } else if (direction === RIGHT) {
+    if (j + 1 >= map[i].length) return -1;
+    return [i, j + 1];
+  } else if (direction === DOWN) {
+    if (i + 1 >= map.length) return -1;
+    return [i + 1, j];
+  } else return -1;
+}
+
+// handles picking up item or weapon.
+function pickUp(map, playerIndex, direction) {}
+
+// regenerates next level dungeon.
+function enterPortal(dungeon) {
+  return true;
+}
+
+// battle
+function fightEnemy(map, playerIndex, direction) {}
+
 // main view of game.
 var DungeonView = React.createClass({
-  displayName: "DungeonView",
+  displayName: 'DungeonView',
 
   getInitialState: function getInitialState() {
     return {
-      map: generateDungeon(width, height, new player(FIST, 0), 1),
-      playerIndex: playerIndex,
+      map: generateDungeon(width, height, new player(FIST, 0, 0), 1),
+      playerIndex: playerIndex_g,
       dungeon: 1
     };
   },
+  handleKeyDown: function handleKeyDown(e) {
+    var newMap = copy(this.state.map, dungeon);
+    var dungeon = this.state.dungeon;
+    var isNextDungeon = movePlayer(newMap, this.state.playerIndex, e.keyCode, dungeon);
+    if (isNextDungeon) dungeon++;
+    this.setState({
+      map: newMap,
+      playerIndex: playerIndex_g,
+      dungeon: dungeon
+    });
+  },
   render: function render() {
-    console.log("view rendering.");
+    window.addEventListener('keydown', this.handleKeyDown, false);
+    window.focus();
+    var index = this.state.playerIndex;
     return React.createElement(
-      "div",
-      { className: "row" },
-      React.createElement(PlayerInfo, null),
+      'div',
+      { className: 'row' },
+      React.createElement(PlayerInfo, {
+        player: this.state.map[index[0]][index[1]],
+        dungeon: this.state.dungeon }),
       React.createElement(Map, { map: this.state.map })
     );
   }
@@ -403,57 +525,64 @@ var DungeonView = React.createClass({
 
 // shows health, weapon, level, etc.
 var PlayerInfo = React.createClass({
-  displayName: "PlayerInfo",
+  displayName: 'PlayerInfo',
 
   render: function render() {
+    var weapon = weaponString(this.props.player.weapon);
     return React.createElement(
-      "div",
-      { id: "PlayerInfo", className: "row" },
+      'div',
+      { id: 'PlayerInfo', className: 'row' },
       React.createElement(
-        "div",
-        { className: "col-md-8" },
+        'div',
+        { className: 'col-md-8' },
         React.createElement(
-          "div",
-          { className: "row" },
+          'div',
+          { className: 'row' },
           React.createElement(
-            "p",
-            { className: "col-md-2" },
-            "Health: "
+            'p',
+            { className: 'col-md-2' },
+            'Health: ',
+            this.props.player.hp
           ),
           React.createElement(
-            "p",
-            { className: "col-md-2" },
-            "Weapon: "
+            'p',
+            { className: 'col-md-2' },
+            'Weapon: ',
+            weapon
           ),
           React.createElement(
-            "p",
-            { className: "col-md-2" },
-            "Attack: "
+            'p',
+            { className: 'col-md-2' },
+            'Attack: ',
+            this.props.player.attack
           ),
           React.createElement(
-            "p",
-            { className: "col-md-2" },
-            "Level: "
+            'p',
+            { className: 'col-md-2' },
+            'Level: ',
+            this.props.player.level
           ),
           React.createElement(
-            "p",
-            { className: "col-md-2" },
-            "Next Level: "
+            'p',
+            { className: 'col-md-2' },
+            'Next Level: ',
+            this.props.player.nextLevel
           ),
           React.createElement(
-            "p",
-            { className: "col-md-2" },
-            "Dungeon: "
+            'p',
+            { className: 'col-md-2' },
+            'Dungeon: ',
+            this.props.dungeon
           )
         )
       ),
       React.createElement(
-        "div",
-        { className: "col-md-4" },
+        'div',
+        { className: 'col-md-4' },
         React.createElement(
-          "button",
+          'button',
           null,
-          "Toggle Darkness"
+          'Toggle Darkness'
         )
       )
     );
@@ -463,7 +592,7 @@ var PlayerInfo = React.createClass({
 
 // dungeon
 var Map = React.createClass({
-  displayName: "Map",
+  displayName: 'Map',
 
   render: function render() {
     var rows = [];
@@ -478,16 +607,16 @@ var Map = React.createClass({
       rows.push(React.createElement(MapRow, { cells: cells, key: i }));
     }
     return React.createElement(
-      "div",
-      { className: "row" },
+      'div',
+      { className: 'row' },
       React.createElement(
-        "div",
-        { className: "col-xs-12" },
+        'div',
+        { className: 'col-xs-12' },
         React.createElement(
-          "table",
-          { id: "Map" },
+          'table',
+          { id: 'Map' },
           React.createElement(
-            "tbody",
+            'tbody',
             null,
             rows
           )
@@ -500,11 +629,11 @@ var Map = React.createClass({
 
 // row of dungeon cells.
 var MapRow = React.createClass({
-  displayName: "MapRow",
+  displayName: 'MapRow',
 
   render: function render() {
     return React.createElement(
-      "tr",
+      'tr',
       null,
       this.props.cells
     );
@@ -514,7 +643,7 @@ var MapRow = React.createClass({
 
 // dungeon cell.
 var MapCell = React.createClass({
-  displayName: "MapCell",
+  displayName: 'MapCell',
 
   render: function render() {
     var color;
@@ -554,12 +683,12 @@ var MapCell = React.createClass({
       backgroundColor: color
     };
     return React.createElement(
-      "td",
+      'td',
       null,
       React.createElement(
-        "div",
-        { style: css, "class": "cell" },
-        " "
+        'div',
+        { style: css, 'class': 'cell' },
+        ' '
       )
     );
   }
