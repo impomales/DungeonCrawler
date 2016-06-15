@@ -443,7 +443,10 @@ function movePlayer(map, playerIndex, direction, dungeon) {
     return false;
   }
   // if next space in direction portal
-  if (nextSpace === PORTAL) return enterPortal(dungeon);
+  if (nextSpace === PORTAL) {
+    map = enterPortal(dungeon);
+    return true;
+  }
   // if next space in direction item or weapon
   if (nextSpace.name === 'ITEM' || nextSpace.name === 'WEAPON') {
     pickUp(map, playerIndex, index);
@@ -475,11 +478,29 @@ function getNextSpace(map, playerIndex, direction) {
 }
 
 // handles picking up item or weapon.
-function pickUp(map, playerIndex, direction) {}
+function pickUp(map, playerIndex, index) {
+  var nextSpace = map[index[0]][index[1]];
+  var player = map[playerIndex[0]][playerIndex[1]];
+  if (nextSpace.name === 'ITEM') {
+    player.hp += nextSpace.health;
+    map[index[0]][index[1]] = map[playerIndex[0]][playerIndex[1]];
+    map[playerIndex[0]][playerIndex[1]] = EMPTY;
+    playerIndex_g = [index[0], index[1]];
+    return;
+  }
+  if (nextSpace.name === 'WEAPON') {
+    console.log(nextSpace);
+    player.weapon = nextSpace.type;
+    player.attack = setAttack(player.weapon, player.level);
+    map[index[0]][index[1]] = map[playerIndex[0]][playerIndex[1]];
+    map[playerIndex[0]][playerIndex[1]] = EMPTY;
+    playerIndex_g = [index[0], index[1]];
+  }
+}
 
 // regenerates next level dungeon.
 function enterPortal(dungeon) {
-  return true;
+  return [];
 }
 
 // battle
@@ -497,7 +518,7 @@ var DungeonView = React.createClass({
     };
   },
   handleKeyDown: function handleKeyDown(e) {
-    var newMap = copy(this.state.map, dungeon);
+    var newMap = copy(this.state.map, this.state.dungeon);
     var dungeon = this.state.dungeon;
     var isNextDungeon = movePlayer(newMap, this.state.playerIndex, e.keyCode, dungeon);
     if (isNextDungeon) dungeon++;
