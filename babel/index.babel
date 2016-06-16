@@ -468,7 +468,6 @@ function movePlayer(map, playerIndex, direction, dungeon) {
   }
   // if next space in direction portal 
   if (nextSpace === PORTAL) {
-    map = enterPortal(dungeon);
     return true;
   }
   // if next space in direction item or weapon
@@ -524,8 +523,9 @@ function pickUp(map, playerIndex, index) {
 }
 
 // regenerates next level dungeon.
-function enterPortal(dungeon) {
-  return [];
+function enterPortal(dungeon, player) {
+  var map = generateDungeon(width, height, player, dungeon);
+  return map;
 }
 
 // battle
@@ -546,7 +546,10 @@ var DungeonView = React.createClass({
     var newMap = copy(this.state.map, this.state.dungeon);
     var dungeon = this.state.dungeon;
     var isNextDungeon = movePlayer(newMap, this.state.playerIndex, e.keyCode, dungeon);
-    if (isNextDungeon) dungeon++;
+    if (isNextDungeon) {
+      dungeon++;
+      newMap = enterPortal(dungeon, newMap[playerIndex_g[0]][playerIndex_g[1]]);
+    }
     this.setState({
       map: newMap,
       playerIndex: playerIndex_g,
