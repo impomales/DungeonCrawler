@@ -47,11 +47,11 @@ var WEST = 10;
 
 // weapons available.
 var FIST = 50;
-var STICK = 75;
-var MACE = 100;
-var AXE = 125;
-var KATANA = 150;
-var OATHKEEPER = 500;
+var STICK = 100;
+var MACE = 150;
+var AXE = 200;
+var KATANA = 250;
+var OATHKEEPER = 300;
 
 function weaponString(type) {
   switch (type) {
@@ -74,11 +74,11 @@ function weaponString(type) {
 
 /* player object */
 function setAttack(weapon, level) {
-  return 2 * level + weapon;
+  return 25 * level + weapon;
 }
 
 function setNextLevel(level) {
-  return 200 * level + 100;
+  return 100 * level + 100;
 }
 
 function setHp(level) {
@@ -103,11 +103,11 @@ function player(weapon, level, nextLevel, hp) {
 }
 
 /* enemy object */
-function enemy(dungeon, hp) {
+function enemy(dungeon, hp, boss) {
   this.name = "ENEMY";
   this.hp = hp === 0 ? 100 * (dungeon - 1) + 100 : hp;
   this.attack = 50 * dungeon;
-  this.isBoss = false;
+  this.isBoss = boss;
 }
 
 /* weapon object */
@@ -172,7 +172,7 @@ function copy(map, dungeon) {
           row.push(new player(playerOld.weapon, playerOld.level, playerOld.nextLevel, playerOld.hp));
         } else if (map[i][j].name === 'ENEMY') {
           var enemyOld = map[i][j];
-          row.push(new enemy(dungeon, enemyOld.hp));
+          row.push(new enemy(dungeon, enemyOld.hp, enemyOld.isBoss));
         } else if (map[i][j].name === 'WEAPON') row.push(new weapon(dungeon));else if (map[i][j].name === 'ITEM') row.push(new item(dungeon));else console.log("error in copying map");
       }
     }
@@ -402,11 +402,11 @@ function getRandomSquare(map) {
 }
 
 function populateEnemies(map, dungeon) {
-  var numberOfEnemies = 3 + 2 * dungeon;
+  var numberOfEnemies = 4 + dungeon;
   while (numberOfEnemies > 0) {
     // should create getRandomEmptyIndex function.
     var index = getRandomIndex(map);
-    map[index[0]][index[1]] = new enemy(dungeon, 0);
+    map[index[0]][index[1]] = new enemy(dungeon, 0, false);
     numberOfEnemies--;
   }
   if (dungeon === 5) {
@@ -415,7 +415,7 @@ function populateEnemies(map, dungeon) {
 }
 
 function populateItems(map, dungeon) {
-  var numberOfItems = 5 - dungeon;
+  var numberOfItems = 5;
   while (numberOfItems) {
     var index = getRandomIndex(map);
     map[index[0]][index[1]] = new item(dungeon);
@@ -442,8 +442,7 @@ function putPlayer(map, player) {
 function putBoss(map) {
   // needs four empty spaces in a shape of a square
   var square = getRandomSquare(map);
-  var boss = new enemy(8, 0);
-  boss.isBoss = true;
+  var boss = new enemy(8, 0, true);
   for (var i = 0; i < square.length; i++) {
     map[square[i][0]][square[i][1]] = boss;
   }
