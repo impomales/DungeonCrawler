@@ -107,6 +107,7 @@ function enemy(dungeon, hp) {
   this.name = "ENEMY";
   this.hp = hp === 0 ? 100 * (dungeon - 1) + 100 : hp;
   this.attack = 50 * dungeon;
+  this.isBoss = false;
 }
 
 /* weapon object */
@@ -387,6 +388,19 @@ function getRandomIndex(map) {
   return index;
 }
 
+function getRandomSquare(map) {
+  var square = [];
+  var index = [];
+  do {
+    index = [Math.floor(Math.random() * map.length), Math.floor(Math.random() * map[0].length)];
+  } while (map[index[0]][[1]] !== EMPTY && map[index[0]][index[1] + 1] !== EMPTY && map[index[0] + 1][index[1] + 1] !== EMPTY && map[index[0] + 1][index[1]] !== EMPTY);
+  square.push([index[0], index[1]]);
+  square.push([index[0], index[1] + 1]);
+  square.push([index[0] + 1, index[1] + 1]);
+  square.push([index[0] + 1, index[1]]);
+  return square;
+}
+
 function populateEnemies(map, dungeon) {
   var numberOfEnemies = 3 + 2 * dungeon;
   while (numberOfEnemies > 0) {
@@ -396,7 +410,6 @@ function populateEnemies(map, dungeon) {
     numberOfEnemies--;
   }
   if (dungeon === 5) {
-    // need to put boss.
     putBoss(map);
   }
 }
@@ -426,8 +439,15 @@ function putPlayer(map, player) {
   playerIndex_g = [index[0], index[1]];
 }
 
-function putBoss(map) {}
-// needs four empty spaces in a shape of a square
+function putBoss(map) {
+  // needs four empty spaces in a shape of a square
+  var square = getRandomSquare(map);
+  var boss = new enemy(8, 0);
+  boss.isBoss = true;
+  for (var i = 0; i < square.length; i++) {
+    map[square[i][0]][square[i][1]] = boss;
+  }
+}
 
 // moves player one step in direction.
 function movePlayer(map, playerIndex, direction, dungeon) {
@@ -520,7 +540,6 @@ function fightEnemy(map, player, enemyIndex) {
     first = enemy;
     second = player;
   }
-  console.log(first);
   // attack randomly selected within range
   // object.attack - epsilon <= attack <= object.attack + epsilon
   // where epsilon is 25% of object.attack
@@ -553,11 +572,18 @@ function fightEnemy(map, player, enemyIndex) {
 
 // do some kind of popup and end game.
 function gameOver() {
-  console.log("Game Over! You lose!");
+  window.alert("Game Over! You lose!");
+  window.location.reload(false);
+}
+
+function gameWon() {
+  window.alert("Congratulations! You beat the game!");
+  window.location.reload(false);
 }
 
 function victory(map, player, enemyIndex) {
   var enemy = map[enemyIndex[0]][enemyIndex[1]];
+  if (enemy.isBoss) gameWon();
   player.nextLevel -= enemy.attack;
   if (player.nextLevel <= 0) {
     var carryOver = player.nextLevel;
@@ -569,6 +595,17 @@ function victory(map, player, enemyIndex) {
   playerIndex_g = [enemyIndex[0], enemyIndex[1]];
 }
 
+function isClose(index, playerIndex) {
+  // do it algorighmically
+  for (var i = playerIndex[0] - 2; i <= playerIndex[0] + 2; i++) {
+    for (var j = playerIndex[1] - 2; j <= playerIndex[1] + 2; j++) {
+      if (index[0] === i && index[1] === j) return true;
+    }
+  }
+
+  return false;
+}
+
 // main view of game.
 var DungeonView = React.createClass({
   displayName: 'DungeonView',
@@ -577,7 +614,8 @@ var DungeonView = React.createClass({
     return {
       map: generateDungeon(width, height, new player(FIST, 0, 0, 0), 1),
       playerIndex: playerIndex_g,
-      dungeon: 1
+      dungeon: 1,
+      darkness: darkness
     };
   },
   handleKeyDown: function handleKeyDown(e) {
@@ -594,6 +632,10 @@ var DungeonView = React.createClass({
       dungeon: dungeon
     });
   },
+  handleDarkness: function handleDarkness() {
+    darkness = !darkness;
+    this.setState({ darkness: darkness });
+  },
   render: function render() {
     window.addEventListener('keydown', this.handleKeyDown, false);
     window.focus();
@@ -603,7 +645,8 @@ var DungeonView = React.createClass({
       { className: 'row' },
       React.createElement(PlayerInfo, {
         player: this.state.map[index[0]][index[1]],
-        dungeon: this.state.dungeon }),
+        dungeon: this.state.dungeon,
+        handleDarkness: this.handleDarkness }),
       React.createElement(Map, { map: this.state.map })
     );
   }
@@ -614,6 +657,9 @@ var DungeonView = React.createClass({
 var PlayerInfo = React.createClass({
   displayName: 'PlayerInfo',
 
+  handleDarkness: function handleDarkness() {
+    this.props.handleDarkness();
+  },
   render: function render() {
     var weapon = weaponString(this.props.player.weapon);
     return React.createElement(
@@ -668,7 +714,7 @@ var PlayerInfo = React.createClass({
         { className: 'col-md-4' },
         React.createElement(
           'button',
-          null,
+          { onClick: this.handleDarkness },
           'Toggle Darkness'
         )
       )
@@ -688,7 +734,8 @@ var Map = React.createClass({
       for (var j = 0; j < this.props.map[i].length; j++) {
         cells.push(React.createElement(MapCell, {
           cell: this.props.map[i][j],
-          key: i * j + j
+          key: i * j + j,
+          index: [i, j]
         }));
       }
       rows.push(React.createElement(MapRow, { cells: cells, key: i }));
@@ -734,36 +781,40 @@ var MapCell = React.createClass({
 
   render: function render() {
     var color;
-    if (typeof this.props.cell === 'number') {
-      switch (this.props.cell) {
-        case FULL:
-          color = '#333';
-          break;
-        case EMPTY:
-          color = '#fff';
-          break;
-        case PORTAL:
-          color = '#c6f';
-          break;
-        default:
-          color = '#000';
-      }
+    if (!isClose(this.props.index, playerIndex_g) && darkness) {
+      color = '#333';
     } else {
-      switch (this.props.cell.name) {
-        case 'PLAYER':
-          color = 'blue';
-          break;
-        case 'ENEMY':
-          color = 'red';
-          break;
-        case 'ITEM':
-          color = '#0f3';
-          break;
-        case 'WEAPON':
-          color = '#ff3';
-          break;
-        default:
-          color = 'black';
+      if (typeof this.props.cell === 'number') {
+        switch (this.props.cell) {
+          case FULL:
+            color = '#333';
+            break;
+          case EMPTY:
+            color = '#fff';
+            break;
+          case PORTAL:
+            color = '#c6f';
+            break;
+          default:
+            color = '#000';
+        }
+      } else {
+        switch (this.props.cell.name) {
+          case 'PLAYER':
+            color = 'blue';
+            break;
+          case 'ENEMY':
+            color = 'red';
+            break;
+          case 'ITEM':
+            color = '#0f3';
+            break;
+          case 'WEAPON':
+            color = '#ff3';
+            break;
+          default:
+            color = 'black';
+        }
       }
     }
     var css = {
