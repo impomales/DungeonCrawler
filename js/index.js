@@ -7,6 +7,7 @@ var width = 50;
 var height = 25;
 var threshold = 70;
 var playerIndex_g = [];
+var darkness = true;
 
 // keyboard codes
 var LEFT = 37;
@@ -84,18 +85,18 @@ function setHp(level) {
   return 100 * level + 100;
 }
 
-function player(weapon, level, hp) {
+function player(weapon, level, nextLevel, hp) {
   this.name = "PLAYER";
   this.weapon = weapon;
   this.level = level;
   // set to default if zero.
   this.hp = hp === 0 ? setHp(level) : hp;
   this.attack = setAttack(this.weapon, this.level);
-  this.nextLevel = setNextLevel(this.level);
+  this.nextLevel = nextLevel === 0 ? setNextLevel(this.level) : nextLevel;
   this.levelUp = function () {
     if (this.nextLevel > 0) return;
     this.level++;
-    this.hp = setHp(this.level);
+    this.hp += setHp(this.level);
     this.attack = setAttack(this.weapon, this.level);
     this.nextLevel = setNextLevel(this.level);
   };
@@ -104,7 +105,7 @@ function player(weapon, level, hp) {
 /* enemy object */
 function enemy(dungeon, hp) {
   this.name = "ENEMY";
-  this.hp = hp === 0 ? 100 * dungeon + 100 : hp;
+  this.hp = hp === 0 ? 100 * (dungeon - 1) + 100 : hp;
   this.attack = 50 * dungeon;
 }
 
@@ -137,19 +138,19 @@ function item(dungeon) {
   this.name = "ITEM";
   switch (dungeon) {
     case 1:
-      this.health = 25;
-      break;
-    case 2:
       this.health = 50;
       break;
-    case 3:
+    case 2:
       this.health = 75;
       break;
-    case 4:
+    case 3:
       this.health = 100;
       break;
-    case 5:
+    case 4:
       this.health = 150;
+      break;
+    case 5:
+      this.health = 200;
       break;
     default:
       this.health = -1;
@@ -167,7 +168,7 @@ function copy(map, dungeon) {
       if (typeof map[i][j] === 'number') row.push(map[i][j]);else {
         if (map[i][j].name === 'PLAYER') {
           var playerOld = map[i][j];
-          row.push(new player(playerOld.weapon, playerOld.level, playerOld.hp));
+          row.push(new player(playerOld.weapon, playerOld.level, playerOld.nextLevel, playerOld.hp));
         } else if (map[i][j].name === 'ENEMY') {
           var enemyOld = map[i][j];
           row.push(new enemy(dungeon, enemyOld.hp));
@@ -372,7 +373,7 @@ function populate(map, dungeon, player) {
   // put weapon -- one per floor.
   putWeapon(map, dungeon);
   // put portal -- one per floor.
-  putPortal(map);
+  if (dungeon < 5) putPortal(map);
   // put player -- one per floor.  * store location of the player!
   putPlayer(map, player);
 }
@@ -444,7 +445,6 @@ function movePlayer(map, playerIndex, direction, dungeon) {
   }
   // if next space in direction portal
   if (nextSpace === PORTAL) {
-    map = enterPortal(dungeon);
     return true;
   }
   // if next space in direction item or weapon
@@ -453,7 +453,9 @@ function movePlayer(map, playerIndex, direction, dungeon) {
     return false;
   }
   // if next space in direction is enemy
-  if (nextSpace.name === 'ENEMY') fightEnemy(map, playerIndex, index);
+  if (nextSpace.name === 'ENEMY') {
+    fightEnemy(map, map[playerIndex[0]][playerIndex[1]], index);
+  }
 
   // otherwise
   return false;
@@ -489,7 +491,6 @@ function pickUp(map, playerIndex, index) {
     return;
   }
   if (nextSpace.name === 'WEAPON') {
-    console.log(nextSpace);
     player.weapon = nextSpace.type;
     player.attack = setAttack(player.weapon, player.level);
     map[index[0]][index[1]] = map[playerIndex[0]][playerIndex[1]];
@@ -499,12 +500,74 @@ function pickUp(map, playerIndex, index) {
 }
 
 // regenerates next level dungeon.
-function enterPortal(dungeon) {
-  return [];
+function enterPortal(dungeon, player) {
+  var map = generateDungeon(width, height, player, dungeon);
+  return map;
 }
 
 // battle
-function fightEnemy(map, playerIndex, direction) {}
+function fightEnemy(map, player, enemyIndex) {
+  var enemy = map[enemyIndex[0]][enemyIndex[1]];
+  var first, second;
+  var attackFirst, attackSecond;
+
+  var whoGoesFirst = Math.floor(Math.random() * 2);
+  if (whoGoesFirst === 1) {
+    // player goes first
+    first = player;
+    second = enemy;
+  } else {
+    first = enemy;
+    second = player;
+  }
+  console.log(first);
+  // attack randomly selected within range
+  // object.attack - epsilon <= attack <= object.attack + epsilon
+  // where epsilon is 25% of object.attack
+  attackFirst = Math.random() * (0.5 * first.attack) + 0.75 * first.attack;
+  attackSecond = Math.random() * (0.5 * second.attack) + 0.75 * first.attack;
+
+  second.hp -= attackFirst;
+  if (second.hp <= 0) {
+    if (second.name === 'PLAYER') {
+      // handleGameOver.
+      gameOver();
+    } else {
+      // handleVictory.
+      victory(map, player, enemyIndex);
+    }
+    return;
+  }
+  first.hp -= attackSecond;
+  if (first.hp <= 0) {
+    if (first.name === 'PLAYER') {
+      // handleGameOver.
+      gameOver();
+    } else {
+      // handleVictory.
+      victory(map, player, enemyIndex);
+    }
+    return;
+  }
+}
+
+// do some kind of popup and end game.
+function gameOver() {
+  console.log("Game Over! You lose!");
+}
+
+function victory(map, player, enemyIndex) {
+  var enemy = map[enemyIndex[0]][enemyIndex[1]];
+  player.nextLevel -= enemy.attack;
+  if (player.nextLevel <= 0) {
+    var carryOver = player.nextLevel;
+    player.levelUp();
+    player.nextLevel += carryOver;
+  }
+  map[enemyIndex[0]][enemyIndex[1]] = player;
+  map[playerIndex_g[0]][playerIndex_g[1]] = EMPTY;
+  playerIndex_g = [enemyIndex[0], enemyIndex[1]];
+}
 
 // main view of game.
 var DungeonView = React.createClass({
@@ -512,7 +575,7 @@ var DungeonView = React.createClass({
 
   getInitialState: function getInitialState() {
     return {
-      map: generateDungeon(width, height, new player(FIST, 0, 0), 1),
+      map: generateDungeon(width, height, new player(FIST, 0, 0, 0), 1),
       playerIndex: playerIndex_g,
       dungeon: 1
     };
@@ -521,7 +584,10 @@ var DungeonView = React.createClass({
     var newMap = copy(this.state.map, this.state.dungeon);
     var dungeon = this.state.dungeon;
     var isNextDungeon = movePlayer(newMap, this.state.playerIndex, e.keyCode, dungeon);
-    if (isNextDungeon) dungeon++;
+    if (isNextDungeon) {
+      dungeon++;
+      newMap = enterPortal(dungeon, newMap[playerIndex_g[0]][playerIndex_g[1]]);
+    }
     this.setState({
       map: newMap,
       playerIndex: playerIndex_g,
@@ -563,7 +629,7 @@ var PlayerInfo = React.createClass({
             'p',
             { className: 'col-md-2' },
             'Health: ',
-            this.props.player.hp
+            Math.floor(this.props.player.hp)
           ),
           React.createElement(
             'p',
